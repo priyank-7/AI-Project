@@ -121,18 +121,50 @@ class PlanRouteProblem(search.Problem):
         self.goals = goals     # list of goals that can be achieved
         self.allowed = allowed # the states we can move into
 
-    def h(self,node):
+
+    def h(self, node):
         """
         Heuristic that will be used by search.astar_search()
         """
-        "*** YOUR CODE HERE ***"
+        curr_s = node.state
+        goal_s = self.goals
+        distance = math.sqrt((curr_s[0] - goal_s[0])**2 + (curr_s[1] - goal_s[1])**2)
+        return distance
         pass
 
     def actions(self, state):
         """
         Return list of allowed actions that can be made in state
         """
-        "*** YOUR CODE HERE ***"
+
+    # current: (x,y,h) tuple, so: [0]=x, [1]=y, [2]=h=heading)
+    # heading: 0:^:north 1:<:west 2:v:south 3:>:east
+        actions = []
+        if state[2] == 0 and (state[0], state[1] + 1) in self.allowed:
+            actions.add('Forward')
+        if(state[2] == 0 and (state[0] +1, state[1]) in self.allowed):
+            actions.add('TurnLeft')
+        if(state[2] == 0 and (state[0] -1, state[1]) in self.allowed):
+            actions.add('TurnRight')
+        if state[2] == 1 and (state[0], state[1] + 1) in self.allowed:
+            actions.add('TurnRight')
+        if(state[2] == 1 and (state[0] +1, state[1]) in self.allowed):
+            actions.add('Forward')
+        if(state[2] == 1 and (state[0] , state[1] - 1) in self.allowed):
+            actions.add('TurnLeft')
+        if state[2] == 2 and (state[0], state[1] + 1) in self.allowed:
+            actions.add('Forward')
+        if(state[2] == 2 and (state[0] +1, state[1]) in self.allowed):
+            actions.add('TurnLeft')
+        if(state[2] == 2 and (state[0] - 1 , state[1]) in self.allowed):
+            actions.add('TurnRight')
+        if state[2] == 3 and (state[0] + 1, state[1]) in self.allowed:
+            actions.add('Forward')
+        if(state[2] == 3 and (state[0], state[1] + 1) in self.allowed):
+            actions.add('TurnLeft')
+        if(state[2] == 3 and (state[0], state[1] - 1) in self.allowed):
+            actions.add('TurnRight')
+        return allowed_actions
         pass
 
 
@@ -147,8 +179,8 @@ class PlanRouteProblem(search.Problem):
         """
         Return True if state is a goal state
         """
-        "*** YOUR CODE HERE ***"
-        return True
+        return (state[0]==self.goals[0])and(state[1]==self.goals[1])
+        pass
 
 #-------------------------------------------------------------------------------
 
