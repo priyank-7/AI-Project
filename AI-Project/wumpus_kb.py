@@ -718,7 +718,7 @@ def axiom_generator_heading_only_north(t):
 
     t := time
     """
-    # if agent is going only in north then the agent is not allowed to go in any other direction
+    # if agent is going only in north then the agent is not allowed heading go in any other direction
     north = state_heading_north_str(t)
     south = state_heading_south_str(t)
     east = state_heading_east_str(t)
@@ -737,7 +737,7 @@ def axiom_generator_heading_only_east(t):
 
     t := time
     """
-    # if agent is going only in east then the agent is not allowed to go in any other direction
+    # if agent is going only in east then the agent is not allowed to heading in any other direction
     north = state_heading_north_str(t)
     south = state_heading_south_str(t)
     east = state_heading_east_str(t)
@@ -756,7 +756,7 @@ def axiom_generator_heading_only_south(t):
 
     t := time
     """
-    # if agent is going only in north then the agent is not allowed to go in any other direction
+    # if agent is going only in north then the agent is not allowed to heading in any other direction
     north = state_heading_north_str(t)
     south = state_heading_south_str(t)
     east = state_heading_east_str(t)
@@ -774,7 +774,7 @@ def axiom_generator_heading_only_west(t):
 
     t := time
     """
-    # if agent is going only in north then the agent is not allowed to go in any other direction
+    # if agent is going only in north then the agent is not allowed to heading in any other direction
     north = state_heading_north_str(t)
     south = state_heading_south_str(t)
     east = state_heading_east_str(t)
