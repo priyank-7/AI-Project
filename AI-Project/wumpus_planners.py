@@ -164,7 +164,7 @@ class PlanRouteProblem(search.Problem):
             actions.add('TurnLeft')
         if(state[2] == 3 and (state[0], state[1] - 1) in self.allowed):
             actions.add('TurnRight')
-        return allowed_actions
+        return actions
         pass
 
 
