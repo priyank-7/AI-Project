@@ -290,7 +290,7 @@ class PlanShotProblem(search.Problem):
         return min(distance_shot_spot)
 
     """
-    Name: Deeprajsigh Gohil
+    Name: Deeprajsinh Gohil
     """
     def actions(self, state):
         """
