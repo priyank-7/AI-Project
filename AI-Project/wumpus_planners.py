@@ -32,6 +32,7 @@ def manhattan_distance_with_heading(current, target):
     heading: 0:^:north 1:<:west 2:v:south 3:>:east
     """
     md = abs(current[0] - target[0]) + abs(current[1] - target[1])
+
     if current[2] == 0:   # heading north
         # Since the agent is facing north, "side" here means
         # whether the target is in a row above or below (or
@@ -121,66 +122,84 @@ class PlanRouteProblem(search.Problem):
         self.goals = goals     # list of goals that can be achieved
         self.allowed = allowed # the states we can move into
 
-
-    def h(self, node):
+    """
+    Name: Priyal Patel
+    """
+    def h(self,node):
         """
         Heuristic that will be used by search.astar_search()
         """
-        curr_s = node.state
-        goal_s = self.goals
-        distance = math.sqrt((curr_s[0] - goal_s[0])**2 + (curr_s[1] - goal_s[1])**2)
-        return distance
-        pass
+        return min([manhattan_distance_with_heading(node.state, goal) for goal in self.goals ])
 
+
+    """
+    Name: Mujtaba Jafri
+    """
     def actions(self, state):
         """
         Return list of allowed actions that can be made in state
         """
+        yesForward = self.result(state, 'Forward')
+        yesLeft = self.result(state, 'TurnLeft')
+        yesRight = self.result(state, 'TurnRight')
 
-    # current: (x,y,h) tuple, so: [0]=x, [1]=y, [2]=h=heading)
-    # heading: 0:^:north 1:<:west 2:v:south 3:>:east
-        actions = []
-        if state[2] == 0 and (state[0], state[1] + 1) in self.allowed:
-            actions.add('Forward')
-        if(state[2] == 0 and (state[0] +1, state[1]) in self.allowed):
-            actions.add('TurnLeft')
-        if(state[2] == 0 and (state[0] -1, state[1]) in self.allowed):
-            actions.add('TurnRight')
-        if state[2] == 1 and (state[0], state[1] + 1) in self.allowed:
-            actions.add('TurnRight')
-        if(state[2] == 1 and (state[0] +1, state[1]) in self.allowed):
-            actions.add('Forward')
-        if(state[2] == 1 and (state[0] , state[1] - 1) in self.allowed):
-            actions.add('TurnLeft')
-        if state[2] == 2 and (state[0], state[1] + 1) in self.allowed:
-            actions.add('Forward')
-        if(state[2] == 2 and (state[0] +1, state[1]) in self.allowed):
-            actions.add('TurnLeft')
-        if(state[2] == 2 and (state[0] - 1 , state[1]) in self.allowed):
-            actions.add('TurnRight')
-        if state[2] == 3 and (state[0] + 1, state[1]) in self.allowed:
-            actions.add('Forward')
-        if(state[2] == 3 and (state[0], state[1] + 1) in self.allowed):
-            actions.add('TurnLeft')
-        if(state[2] == 3 and (state[0], state[1] - 1) in self.allowed):
-            actions.add('TurnRight')
-        return actions
-        pass
+        moveForward, moveRight, moveLeft = 100.0, 100.0, 100.0
+        possible_wumpus_locations = self.goals
+        explorer_loc = self.allowed
+        for i in possible_wumpus_locations:
+            if (yesForward[0], yesForward[1]) in explorer_loc:
+                moveForward = min(moveForward, manhattan_distance_with_heading(yesForward, i))
+            moveLeft = min(moveLeft, manhattan_distance_with_heading(yesLeft, i))
+            moveRight = min(moveRight, manhattan_distance_with_heading(yesRight, i))
+        if moveForward <= min(moveLeft, moveRight):
+            return ['Forward']
+        elif moveRight <= min(moveForward, moveLeft):
+            return ['TurnRight']
+        else:
+            return ['TurnLeft']
 
+    
 
+    """
+    Name: Priyank Patel
+    """
     def result(self, state, action):
         """
         Return the new state after applying action to state
         """
-        "*** YOUR CODE HERE ***"
-        pass
+        # 0 = North
+        # 1 = West
+        # 2 = South
+        # 3 = East
 
+        # 0 = North, 1 = West, 2 = South, 3 = East
+
+        if action == 'Forward':
+            if state[2] == 0:
+                return (state[0],state[1] + 1,state[2])
+            if state[2] == 1:
+                return (state[0]-1,state[1],state[2])
+            if state[2] == 2:
+                return (state[0],state[1]-1,state[2])
+            if state[2] == 3:
+                return (state[0]+1,state[1],state[2])
+        elif action == 'TurnLeft':
+            state = (state[0], state[1], (state[2] + 1) % 4)
+        elif action == 'TurnRight':
+            state = (state[0], state[1], (state[2] - 1) % 4)
+        return state
+
+    """
+    Name: Priyank Patel
+    """
     def goal_test(self, state):
         """
         Return True if state is a goal state
         """
-        return (state[0]==self.goals[0])and(state[1]==self.goals[1])
-        pass
+        for i,j in self.goals:
+            if state[0] == i and state[1] == j:
+                return True
+        return False
 
 #-------------------------------------------------------------------------------
 
@@ -206,13 +225,8 @@ def test_PRP(initial):
     (0,0,3) : ['Forward', 'Forward', 'Forward', 'TurnLeft', 'Forward', 'Forward']
     """
     return plan_route((initial[0],initial[1]), initial[2],
-                      # Goals:
-                      [(2,3),(3,2)],
-                      # Allowed locations:
-                      [(0,0),(0,1),(0,2),(0,3),
-                       (1,0),(1,1),(1,2),(1,3),
-                       (2,0),            (2,3),
-                       (3,0),(3,1),(3,2),(3,3)])
+                       [(1,4),(1,1)],
+                    [(0,0),(0,1),(0,2),(0,3), (1,0),(1,1),(1,2),(1,3), (2,0), (2,1),(2,2),(2,3), (3,0),(3,1),(3,2),(3,3)])
 
 
 #-------------------------------------------------------------------------------
@@ -258,33 +272,111 @@ class PlanShotProblem(search.Problem):
         self.goals = goals     # list of goals that can be achieved
         self.allowed = allowed # the states we can move into
 
+    """
+    Name: Priyam Shah
+    """
     def h(self, node):
         """
         Heuristic that will be used by search.astar_search()
         """
-        "*** YOUR CODE HERE ***"
-        pass
+        possible_wumpus_locations = self.goals
+        explorer_locations = self.allowed
+        shot_spot = []
+        for WumpusLoc in possible_wumpus_locations:
+            for ExplorerLoc in explorer_locations:
+                if (WumpusLoc[0] == ExplorerLoc[0]) or (WumpusLoc[1] == ExplorerLoc[1]):
+                    shot_spot.append(ExplorerLoc)
+        distance_shot_spot = [manhattan_distance_with_heading(node.state, goal) for goal in shot_spot]
+        return min(distance_shot_spot)
 
+    """
+    Name: Deeprajsigh Gohil
+    """
     def actions(self, state):
         """
         Return list of allowed actions that can be made in state
         """
-        "*** YOUR CODE HERE ***"
-        pass
+        possible_wumpus_locations = self.goals
+        explorer_locations = self.allowed
+        shot_spot = []
 
+        for ExplorerLoc in explorer_locations:
+            for WumpusLoc in possible_wumpus_locations:
+                if (WumpusLoc[0] == ExplorerLoc[0]):
+                    if ExplorerLoc[1] > WumpusLoc[1]:
+                        shot_spot.append((ExplorerLoc[0],ExplorerLoc[1],2))
+                    if ExplorerLoc[1] < WumpusLoc[1]:
+                        shot_spot.append((ExplorerLoc[0],ExplorerLoc[1],0))
+                elif (WumpusLoc[1] == ExplorerLoc[1]):
+                    if ExplorerLoc[0] > WumpusLoc[0]:
+                        shot_spot.append((ExplorerLoc[0],ExplorerLoc[1],1))
+                    if ExplorerLoc[0] < WumpusLoc[0]:
+                        shot_spot.append((ExplorerLoc[0],ExplorerLoc[1],3))
+
+        yes_forward = self.result(state,'Forward')
+        yes_left = self.result(state, "TurnLeft")
+        yes_right = self.result(state, "TurnRight")
+        movef, moveri, movel = 100.0, 100.0, 100.0
+        possible_wumpus_locations = self.goals
+        explorer_loc = self.allowed
+        for WumpusLoc in shot_spot:
+            if (yes_forward[0],yes_forward[1]) in explorer_locations:
+                movef = min(movef,manhattan_distance_with_heading(yes_forward,WumpusLoc))
+            movel = min(movel, manhattan_distance_with_heading(yes_left,WumpusLoc))
+            moveri = min(moveri, manhattan_distance_with_heading(yes_right,WumpusLoc))
+        if movef <= min(movel, moveri):
+            return ["Forward"]
+        elif moveri <= min(movef, movel):
+            return ["TurnRight"]
+        else:
+            return ["TurnLeft"]
+
+    """
+    Name: Priyank Patel
+    """
     def result(self, state, action):
         """
         Return the new state after applying action to state
         """
-        "*** YOUR CODE HERE ***"
-        pass
 
+        if action == 'Forward':
+            if state[2] == 0:
+                return (state[0],state[1] + 1,state[2])
+            if state[2] == 1:
+                return (state[0]-1,state[1],state[2])
+            if state[2] == 2:
+                return (state[0],state[1]-1,state[2])
+            if state[2] == 3:
+                return (state[0]+1,state[1],state[2])
+            
+        elif action == 'TurnLeft':
+            state = (state[0], state[1], (state[2] + 1) % 4)
+        elif action == 'TurnRight':
+            state = (state[0], state[1], (state[2] - 1) % 4)
+        return state
+    
+    """
+    Name: Mujtaba Jafri
+    """
     def goal_test(self, state):
         """
         Return True if state is a goal state
         """
-        "*** YOUR CODE HERE ***"
-        return True
+        possible_wumpus_locations = self.goals
+        exploc = self.allowed
+        shot_spots = []
+
+        for location in exploc:
+            for aim in possible_wumpus_locations:
+                if location[0] == aim[0] and location[1] > aim[1]:
+                    shot_spots.append((location[0],location[1],2))
+                elif location[0] == aim[0] and location[1] < aim[1]:
+                    shot_spots.append((location[0],location[1],0))
+                elif location[0] > aim[0] and location[1] == aim[1]:
+                    shot_spots.append((location[0],location[1],1))
+                elif location[0] < aim[0] and location[1] == aim[1]:
+                    shot_spots.append((location[0],location[1],3))
+        return state in shot_spots
 
 #-------------------------------------------------------------------------------
 
@@ -311,11 +403,11 @@ def test_PSP(initial = (0,0,3)):
     """
     return plan_shot((initial[0],initial[1]), initial[2],
                      # Goals:
-                     [(2,3),(3,2)],
+                     [(1,4),(1,1)],
                      # Allowed locations:
-                     [(0,0),(0,1),(0,2),(0,3),
+                     [(0,0),(0,1),(0,2),
                       (1,0),(1,1),(1,2),(1,3),
-                      (2,0),            (2,3),
+                      (2,1),(2,2)(2,3)(2,4),
                       (3,0),(3,1),(3,2),(3,3)])
     
 #-------------------------------------------------------------------------------
