@@ -356,7 +356,7 @@ class PlanShotProblem(search.Problem):
         return state
     
     """
-    Name: Mujtaba Jafri
+    Name: Deeprajsinh Gohil
     """
     def goal_test(self, state):
         """
