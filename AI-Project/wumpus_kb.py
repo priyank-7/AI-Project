@@ -95,7 +95,7 @@ def action_shoot_str(t=None):
     return ('Shoot{0}'.format(t) if t != None else 'Shoot')
 def action_climb_str(t=None):
     "Action Climb executed at time <t>"
-    return ('Climb{0}'.format(t) if t != None else 'Climb') 
+    return ('Climb{0}'.format(t) if t != None else 'Climb')
 def action_turn_left_str(t=None):
     "Action Turn Left executed at time <t>"
     return ('TurnLeft{0}'.format(t) if t != None else 'TurnLeft')
@@ -137,13 +137,11 @@ def axiom_generator_percept_sentence(t, tvec):
         Output: '~Stench0 & Breeze0 & ~Glitter0 & ~Bump0 & Scream0'
     """
     percept_seq = ['Stench', 'Breeze', 'Glitter', 'Bump', 'Scream']
-    assertions = []
-
-    for i, percept in enumerate(tvec):
-        assert_str = f'{"~" if not percept else ""}{percept_seq[i]}{t}'
-        assertions.append(assert_str)
-
-    return " & ".join(assertions)
+    for i in range(len(tvec)):
+        if not tvec[i]:
+            percept_seq[i] = "~" + percept_seq[i]
+        percept_seq[i]+=str(t)
+    return (" & ".join(percept_seq))
 
 
 """
@@ -155,8 +153,7 @@ def axiom_generator_initial_location_assertions(x, y):
 
     x,y := the location
     """
-    axiom_str = '(~{0}) & (~{1})'.format(pit_str(x,y),wumpus_str(x,y))
-    return axiom_str
+    return ("~" + pit_str(x,y) + " & " + "~" + wumpus_str(x,y))
 
 
 """
@@ -172,17 +169,13 @@ def axiom_generator_pits_and_breezes(x, y, xmin, xmax, ymin, ymax):
            variables to 'prune' any neighboring locations that are outside
            of the environment (and therefore are walls, so can't have Pits).
     """
-    axiom_str = ''
-
     pit = []
-    for (xVal,yVal) in [(x-1,y),(x,y-1),(x+1,y),(x,y+1)]:
-        if xmin <= xVal <= xmax and ymin <= yVal <= ymax:
-            pit.append(pit_str(xVal,yVal))
+    for (i,j) in [(x-1,y),(x,y-1),(x+1,y),(x,y+1)]:
+        if xmin <= i <= xmax and ymin <= j <= ymax:
+            pit.append(pit_str(i,j))
     pit.append(pit_str(x,y))
+    return  (breeze_str(x,y) + " <=> (" + (" | ").join(pit) + ")")
 
-    axiom_str += breeze_str(x,y) + ' <=> ' + (' | ').join(pit)
-
-    return axiom_str
     
 
 def generate_pit_and_breeze_axioms(xmin, xmax, ymin, ymax):
@@ -213,13 +206,12 @@ def axiom_generator_wumpus_and_stench(x, y, xmin, xmax, ymin, ymax):
            of the environment (and therefore are walls, so can't have Wumpi).
     """
     wumpus = []
-    for nx, ny in [(x - 1, y), (x, y - 1), (x + 1, y), (x, y + 1)]:
-        if xmin <= nx <= xmax and ymin <= ny <= ymax:
-            wumpus.append(wumpus_str(nx, ny))
+    for i, j in [(x-1,y),(x,y-1),(x+1,y),(x,y+1)]:
+        if xmin <= i <= xmax and ymin <= j <= ymax:
+            wumpus.append(wumpus_str(i, j))
     wumpus.append(wumpus_str(x, y))
 
-    axiom_str = '{0} <=> ({1})'.format(stench_str(x, y), ' | '.join(wumpus))
-    return axiom_str
+    return (stench_str(x,y) + " <=> (" + (" | ").join(wumpus) + ")")
 
 
 def generate_wumpus_and_stench_axioms(xmin, xmax, ymin, ymax):
@@ -242,12 +234,14 @@ def axiom_generator_at_least_one_wumpus(xmin, xmax, ymin, ymax):
 
     xmin, xmax, ymin, ymax := the bounds of the environment.
     """
-    room = []
-    for xVal in range(xmin, xmax + 1):
-        for yVal in range(ymin, ymax + 1):
-            room.append(wumpus_str(xVal, yVal))
+    axiom_str = ''
+    for i in range(xmin,xmax + 1):
+        for j in range(ymin, ymax + 1):
+            if (i!=xmax) or (j!=ymax):
+                axiom_str+=(wumpus_str(i, j))+" | "
+            else:
+                axiom_str+=wumpus_str(i,j)
 
-    axiom_str = ' | '.join(room)
     return axiom_str
 
 
@@ -265,18 +259,15 @@ def axiom_generator_at_most_one_wumpus(xmin, xmax, ymin, ymax):
     # return axiom_str
 
     axioms = []
+    grid = [(i,j) for i in range(xmin, xmax + 1) for j in range(ymin, ymax + 1)]
 
-    for x in range(xmin, xmax + 1):
-        for y in range(ymin, ymax + 1):
-            temp = []
-            for xi in range(xmin, xmax + 1):
-                for yi in range(ymin, ymax + 1):
-                    if xi != x or yi != y:
-                        temp.append((xi, yi))
-
-            nowumpus = ['~' + wumpus_str(xi, yi) for xi, yi in temp]
-            axioms.append('({}) >> ({}))'.format(wumpus_str(x, y), ' & '.join(nowumpus)))
-
+    for x in grid:
+        nowumpus =[]
+        for y in grid:
+            if x != y:
+                    nowumpus.append("~" + wumpus_str(y[0], y[1]))
+    axioms.append("(" + wumpus_str(x[0],x[1]) + " >> ("+ (" & ".join(nowumpus)) +"))")
+    
     axiom_str = ' & '.join(axioms)
     return axiom_str
 
@@ -292,18 +283,17 @@ def axiom_generator_only_in_one_location(xi, yi, xmin, xmax, ymin, ymax, t=0):
     xmin, xmax, ymin, ymax := the bounds of the environment.
     t := time; default=0
     """
-
     possible_locations = []
-    for x in range(xmin, xmax + 1):
-        for y in range(ymin, ymax + 1):
-            possible_locations.append((x, y))
-
-    current_location = (xi, yi)
-    possible_locations.remove(current_location)
-    np = [f"~L{x}_{y}_{t}" for x, y in possible_locations]
-    axiom = 'L{0}_{1}_{2} & '.format(xi, yi, t) + ' & '.join(np)
-
-    return axiom
+    l=[]
+    for i in range(xmin, xmax + 1):
+        for j in range(ymin, ymax + 1):
+            possible_locations.append(state_loc_str(i, j,t))
+    
+    for i in possible_locations:
+        if i!=state_loc_str(xi,yi,t):
+            l.append(i)
+    possible_locations = l
+    return state_loc_str(xi,yi,t) + " & ~(" + (" | ").join(possible_locations) + ")"
 
 
 """
@@ -317,14 +307,20 @@ def axiom_generator_only_one_heading(heading='north', t=0):
                will be one of: 'north', 'east', 'south', 'west'
     t := time; default=0
     """
-    axiom_str = f"Heading{heading.upper()}{t}"
+    axiom_str = ''
+    entetes = [
+    	"~" + state_heading_north_str(t),
+    	"~" + state_heading_east_str(t),
+    	"~" + state_heading_south_str(t),
+    	"~" + state_heading_west_str(t)
+    ]
+    index = {"north":0, "east":1, "south":2, "west":3}
 
-    for other_heading in ["NORTH", "SOUTH", "EAST", "WEST"]:
-        if other_heading != heading.upper():
-            axiom_str += f" & ~Heading{other_heading}{t}"
+    indexmodif = index[heading]
+    entetes[indexmodif] = entetes[indexmodif][1:]
 
+    axiom_str = " & ".join(entetes)
     return axiom_str
-
 
 """
 Name: Mujtaba jafri
@@ -344,7 +340,7 @@ def axiom_generator_have_arrow_and_wumpus_alive(t=0):
 def initial_wumpus_axioms(xi, yi, width, height, heading='east'):
     """
     Generate all of the initial wumpus axioms
-
+    
     xi,yi = initial location
     width,height = dimensions of world
     heading = str representation of the initial agent heading
@@ -352,7 +348,7 @@ def initial_wumpus_axioms(xi, yi, width, height, heading='east'):
     axioms = [axiom_generator_initial_location_assertions(xi, yi)]
     axioms.extend(generate_pit_and_breeze_axioms(1, width, 1, height))
     axioms.extend(generate_wumpus_and_stench_axioms(1, width, 1, height))
-
+    
     axioms.append(axiom_generator_at_least_one_wumpus(1, width, 1, height))
     axioms.append(axiom_generator_at_most_one_wumpus(1, width, 1, height))
 
@@ -360,14 +356,13 @@ def initial_wumpus_axioms(xi, yi, width, height, heading='east'):
     axioms.append(axiom_generator_only_one_heading(heading))
 
     axioms.append(axiom_generator_have_arrow_and_wumpus_alive())
-
+    
     return axioms
 
 
-# -------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 # Axiom Generators: Temporal Axioms (added at each time step)
-# -------------------------------------------------------------------------------
-
+#-------------------------------------------------------------------------------
 
 
 """
@@ -381,13 +376,9 @@ def axiom_generator_location_OK(x, y, t):
     x,y := location
     t := time
     """
-    axiom_str = '{0} <=> (~{1} & ({3} >> ~{2}))'.format(state_OK_str(x,y,t),pit_str(x,y),state_wumpus_alive_str(t),wumpus_str(x,y))
-    return axiom_str
+    return '{0} <=> (~{1} & ({3} >> ~{2}))'.format(state_OK_str(x,y,t),pit_str(x,y),state_wumpus_alive_str(t),wumpus_str(x,y))
 
 
-"""
-Name: Mujtaba jafri
-"""
 def generate_square_OK_axioms(t, xmin, xmax, ymin, ymax):
     axioms = []
     for x in range(xmin, xmax + 1):
@@ -395,10 +386,11 @@ def generate_square_OK_axioms(t, xmin, xmax, ymin, ymax):
             axioms.append(axiom_generator_location_OK(x, y, t))
     if utils.all_empty_strings(axioms):
         utils.print_not_implemented('axiom_generator_location_OK')
-    return filter(lambda s: s != '', axioms)
+
+    return list(filter(lambda s: s != '', axioms))
 
 
-# -------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 # Connection between breeze / stench percepts and atemporal location properties
 
 """
@@ -412,8 +404,7 @@ def axiom_generator_breeze_percept_and_location_property(x, y, t):
     x,y := location
     t := time
     """
-    axiom_str = '{0} >> ({1} % {2})'.format(state_loc_str(x,y,t),percept_breeze_str(t),breeze_str(x,y))
-    return axiom_str
+    return '{0} >> ({1} % {2})'.format(state_loc_str(x,y,t),percept_breeze_str(t),breeze_str(x,y))
 
 
 def generate_breeze_percept_and_location_axioms(t, xmin, xmax, ymin, ymax):
@@ -422,13 +413,12 @@ def generate_breeze_percept_and_location_axioms(t, xmin, xmax, ymin, ymax):
         for y in range(ymin, ymax + 1):
             axioms.append(axiom_generator_breeze_percept_and_location_property(x, y, t))
     if utils.all_empty_strings(axioms):
-
         utils.print_not_implemented('axiom_generator_breeze_percept_and_location_property')
     return filter(lambda s: s != '', axioms)
 
 
 """
-Name: Priyam Patel
+Name: Priyan shah
 """
 def axiom_generator_stench_percept_and_location_property(x, y, t):
     """
@@ -438,27 +428,20 @@ def axiom_generator_stench_percept_and_location_property(x, y, t):
     x,y := location
     t := time
     """
-    axiom_str = '{0} >> ({1} % {2})'.format(state_loc_str(x,y,t),percept_stench_str(t),stench_str(x,y))
-    return axiom_str
-
+    return '{0} >> ({1} % {2})'.format(state_loc_str(x,y,t),percept_stench_str(t),stench_str(x,y))
 
 
 def generate_stench_percept_and_location_axioms(t, xmin, xmax, ymin, ymax):
     axioms = []
     for x in range(xmin, xmax + 1):
         for y in range(ymin, ymax + 1):
-
             axioms.append(axiom_generator_stench_percept_and_location_property(x, y, t))
     if utils.all_empty_strings(axioms):
-
         utils.print_not_implemented('axiom_generator_stench_percept_and_location_property')
     return filter(lambda s: s != '', axioms)
 
 
-"""
-Name: Deeprajsinh Gohil
-"""
-# -------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
 # Transition model: Successor-State Axioms (SSA's)
 # Avoid the frame problem(s): don't write axioms about actions, write axioms about
 # fluents!  That is, write successor-state axioms as opposed to effect and frame
@@ -468,7 +451,12 @@ Name: Deeprajsinh Gohil
 #   F^{t+1} <=> (Action(s)ThatCause_F^t) | (F^t & ~Action(s)ThatCauseNot_F^t)
 
 # NOTE: this is very expensive in terms of generating many (~170 per axiom) CNF clauses!
-def axiom_generator_at_location_ssa(t, x, y, xmin, xmax, ymin, ymax,heading):
+
+
+"""
+Name: Deeprajsinh Gohil
+"""
+def axiom_generator_at_location_ssa(t, x, y, xmin, xmax, ymin, ymax):
     """
     Assert the condidtions at time t under which the agent is in
     a particular location (state_loc_str: L) at time t+1, following
@@ -482,8 +470,21 @@ def axiom_generator_at_location_ssa(t, x, y, xmin, xmax, ymin, ymax,heading):
     t := time
     xmin, xmax, ymin, ymax := the bounds of the environment.
     """
-    "Your code is here"
+    
+    depls = [f"({state_loc_str(x, y, t)} & (~{action_forward_str(t)} | {percept_bump_str(t+1)} | {action_grab_str(t)} | {action_shoot_str(t)} | {action_turn_left_str(t)} | {action_turn_right_str(t)}))"]
+    neighbours = [(((x - 1), y),"E"), ((x, (y - 1)),"N"), (((x + 1), y),"W"), ((x, (y + 1)),"S")]
+    for ((i, j), depl) in neighbours:
+        if xmin <= i <= xmax and ymin <= j <= ymax:
+            if depl == "N":
+                depls.append("({0} & ({1} & {2}))".format(state_loc_str(x, y - 1, t), state_heading_north_str(t), action_forward_str(t)))
+            if depl == "E":
+                depls.append("({0} & ({1} & {2}))".format(state_loc_str(x - 1, y, t), state_heading_east_str(t), action_forward_str(t)))
+            if depl == "W":
+                depls.append("({0} & ({1} & {2}))".format(state_loc_str(x + 1, y, t), state_heading_west_str(t), action_forward_str(t)))
+            if depl == "S":
+                depls.append("({0} & ({1} & {2}))".format(state_loc_str(x, y + 1, t), state_heading_south_str(t), action_forward_str(t)))
 
+    return "{0} <=> ({1})".format(state_loc_str(x, y, t + 1), " | ".join(depls))
 
 def generate_at_location_ssa(t, x, y, xmin, xmax, ymin, ymax, heading):
     """
@@ -497,25 +498,18 @@ def generate_at_location_ssa(t, x, y, xmin, xmax, ymin, ymax, heading):
     single L location that evaluates to True; however, the other locations
     may be False or Unknown.
     """
-    axioms = []
-    axioms.append(axiom_generator_at_location_ssa(t, x, y, xmin, xmax, ymin, ymax))
-    if heading == 'west'and x - 1 >= xmin:
-        axioms.append(axiom_generator_at_location_ssa(t, x - 1, y, xmin, xmax, ymin, ymax))
+    axioms = [axiom_generator_at_location_ssa(t, x, y, xmin, xmax, ymin, ymax)]
+    if heading == 'west' and x - 1 >= xmin:
+        axioms.append(axiom_generator_at_location_ssa(t, x-1, y, xmin, xmax, ymin, ymax))
+    if heading == 'east' and x + 1 <= xmax:
+        axioms.append(axiom_generator_at_location_ssa(t, x+1, y, xmin, xmax, ymin, ymax))
+    if heading == 'south' and y - 1 >= ymin:
+        axioms.append(axiom_generator_at_location_ssa(t, x, y-1, xmin, xmax, ymin, ymax))
+    if heading == 'north' and y + 1 <= ymax:
+        axioms.append(axiom_generator_at_location_ssa(t, x, y+1, xmin, xmax, ymin, ymax))
+    return filter(lambda s: s != '', axioms)
 
-    if heading == 'east'and x + 1 <= xmax:
-        axioms.append(axiom_generator_at_location_ssa(t, x + 1, y, xmin, xmax, ymin, ymax))
-
-    if heading == 'south'and y - 1 >= ymin:
-        axioms.append(axiom_generator_at_location_ssa(t, x, y - 1, xmin, xmax, ymin, ymax))
-
-    if heading == 'north'and y + 1 <= ymax:
-        axioms.append(axiom_generator_at_location_ssa(t, x, y + 1, xmin, xmax, ymin, ymax))
-    axioms = list(filter(None, axioms))
-
-    return axioms
-
-
-# ----------------------------------
+#----------------------------------
 
 """
 Name: Priyank Patel
@@ -527,13 +521,12 @@ def axiom_generator_have_arrow_ssa(t):
 
     t := time
     """
-    # if the agent didnt shoot arrow at time t and the agent have arrow at previous state then and only then the agent have arrow at time t+1
-    have_arrow_t_plus_1 = state_have_arrow_str(t + 1)   
-    have_arrow_t = state_have_arrow_str(t)
-    shoot_t = action_shoot_str(t)
-    axiom_str = f"{have_arrow_t_plus_1} <=> ({have_arrow_t} & ~{shoot_t})"
 
-    return axiom_str
+    # if the agent didnt shoot arrow at time t and the agent have arrow at previous state then and only then the agent have arrow at time t+1
+    arrow_plus_one = state_have_arrow_str(t+1)
+    arrow = state_have_arrow_str(t)
+    shoot = action_shoot_str(t)
+    return arrow_plus_one + " >> (" + arrow + "& ~" + shoot + ")"
 
 
 """
@@ -551,10 +544,12 @@ def axiom_generator_wumpus_alive_ssa(t):
     t := time
     """
     # If wumpus is alive at time t+1 if and only if wumpus alive at time t and the agent didnt hear scream at time t+1
-    return f"{state_wumpus_alive_str(t+1)} <=> ({state_wumpus_alive_str(t)} and ~{percept_scream_str(t+1)})"
+    alive_plus_one = state_wumpus_alive_str(t+1)
+    alive = state_wumpus_alive_str(t)
+    scream = percept_scream_str(t)
+    return alive_plus_one + " <=> (" + alive + "& ~" + scream + ")"
 
-
-# ----------------------------------
+#----------------------------------
 
 
 """
@@ -567,21 +562,29 @@ def axiom_generator_heading_north_ssa(t):
 
     t := time
     """
-    nomoves = '({0} & ({1} | {2} | {3} | ~{4} | {5} | ~{6} | ~{7}))'.format(
-        state_heading_north_str(t),     # the agent is already in the north direction at time t
-        action_wait_str(t),             # action wait will not change the direction of the agent if it was in the north direction
-        action_grab_str(t),             # action grab will not change the direction of the agent if it was in the north direction
-        action_shoot_str(t),            # action shoot will not change the direction of the agent if it was in the north direction
-        percept_bump_str(t+1),          
-        action_forward_str(t),          # action forward will not change the direction of the agent if it was in the north direction
-        action_turn_left_str(t),        # action turn left at time t will change the direction of the agent if the agent is already heading to the north
-        action_turn_right_str(t)        # action turn right at time t will change the direction of the agent if the agent is already heading to the north
-    )
-    left_turn = '({0} & {1})'.format(state_heading_east_str(t), action_turn_left_str(t))
-    right_turn = '({0} & {1})'.format(state_heading_west_str(t), action_turn_right_str(t))
-    axiom = '{0} <=> ({1} | {2} | {3})'.format(state_heading_north_str(t+1), nomoves, left_turn, right_turn)
+    heading_north_ssa = state_heading_north_str(t+1)
+    action = "({0} & ({1} | {2} | {3} | {4} | {5}))".format(
+        state_heading_north_str(t), # the agent is already in the north direction at time t
+        action_wait_str(t),         # action wait will not change the direction of the agent if it was in the north direction
+        action_grab_str(t),         # action wait will not change the direction of the agent if it was in the north direction
+        action_shoot_str(t),        # action wait will not change the direction of the agent if it was in the north direction
+        percept_bump_str(t+1),      
+        action_forward_str(t)       # action forward will not change the direction of the agent if it was in the north direction
+        )
+    
+    # if agent currently heading towards the east, then the agent will turn left to face north
+    left = "({0} & {1})".format(
+        state_heading_east_str(t),
+        action_turn_left_str(t)
+        )
+    
+    # if agent currently heading towards the west, then the agent will turn right to face north
+    right = "({0} & {1})".format(
+        state_heading_west_str(t),
+        action_turn_right_str(t)
+        )
 
-    return axiom
+    return "{0} <=> ({1} | {2} | {3})".format(heading_north_ssa,action,left,right)
 
 
 """
@@ -594,21 +597,29 @@ def axiom_generator_heading_east_ssa(t):
 
     t := time
     """
-    actions = '({0} & ({1} | {2} | {3} | ~{4} | {5} | ~{6} | ~{7}))'.format(
+    heading_east_ssa = state_heading_east_str(t+1)
+    action = "({0} & ({1} | {2} | {3} | {4} | {5}))".format(
         state_heading_east_str(t),      # the agent is already in the east direction at time t
-        action_wait_str(t),         # action wait will not change the direction of the agent if it was in the east direction
-        action_shoot_str(t),        # action shoot will not change the direction of the agent if it was in the east direction
-        action_grab_str(t),         # action grab will not change the direction of the agent if it was in the east direction
-        percept_bump_str(t+1),      
-        action_forward_str(t),       # action forward will not change the direction of the agent if it was in the east direction
-        action_turn_left_str(t),     # action turn left at time t will change the direction of the agent if the agent is already heading to the east
-        action_turn_right_str(t)    # action turn right at time t will change the direction of the agent if the agent is already heading to the east
-    )
-    left_turn = '({0} & {1})'.format(state_heading_south_str(t), action_turn_left_str(t))
-    right_turn = '({0} & {1})'.format(state_heading_north_str(t), action_turn_right_str(t))
-    axiom_str = '{0} <=> ({1} | {2} | {3})'.format(state_heading_east_str(t+1), actions, left_turn, right_turn)
-
-    return axiom_str
+        action_wait_str(t),             # action wait will not change the direction of the agent if it was in the east direction
+        action_grab_str(t),             # action shoot will not change the direction of the agent if it was in the east direction
+        action_shoot_str(t),            # action grab will not change the direction of the agent if it was in the east direction
+        percept_bump_str(t+1),
+        action_forward_str(t)           # action forward will not change the direction of the agent if it was in the east direction
+        )
+    
+    # if agent currently heading towards the south, then the agent will turn left to face east
+    left = "({0} & {1})".format(
+        state_heading_south_str(t), 
+        action_turn_left_str(t)
+        )
+    
+    # if agent currently heading towards the north, then the agent will turn right to face east
+    right = "({0} & {1})".format(
+        state_heading_north_str(t), 
+        action_turn_right_str(t)
+        )
+    
+    return "{0} <=> ({1} | {2} | {3})".format(heading_east_ssa,action,left,right)
 
 
 """
@@ -621,31 +632,29 @@ def axiom_generator_heading_south_ssa(t):
 
     t := time
     """
-    actions = '({0} & ({1} | {2} | {3} | {4} | ~{5}| ~{6} | ~{7}))'.format(
-        state_heading_south_str(t), #if the agent is already in south direction at time t
-        action_shoot_str(t),    # action shoot will not change the direction of the agent if it was in the south direction
-        action_wait_str(t),     # action wait will not change the direction of the agent if it was in the south direction
-        action_grab_str(t),     # action grab will not change the direction of the agent if it was in the south direction
-        action_forward_str(t),  # action forward will not change the direction of the agent if it was in the south direction
-        percept_bump_str(t+1),
-        action_turn_left_str(t),    # action turn left at time t will change the direction of the agent if the agent is already heading to the south
-        action_turn_right_str(t)    # action turn right at time t will change the direction of the agent if the agent is already heading to the south
-    )
-
-    # if agent currently heading towards the east, then the agent will turn left
-    right_turn = '({0} & {1})'.format(
-        state_heading_east_str(t), 
-        action_turn_right_str(t)
-    )
-
-    # if agent currently heading towards the west, then the agent will turn left
-    left_turn = '({0} & {1})'.format(
-        state_heading_west_str(t), 
+    heading_south_ssa = state_heading_south_str(t+1)
+    action = "({0} & ({1} | {2} | {3} | {4} | {5}))".format(
+        state_heading_south_str(t),     # the agent is already in the south direction at time t
+        action_wait_str(t),             # action wait will not change the direction of the agent if it was in the south direction
+        action_grab_str(t),             # action shoot will not change the direction of the agent if it was in the south direction
+        action_shoot_str(t),            # action grab will not change the direction of the agent if it was in the south direction
+        percept_bump_str(t+1),          
+        action_forward_str(t)           # action forward will not change the direction of the agent if it was in the south direction
+        )
+    
+    # if agent currently heading towards the west, then the agent will turn left to face south
+    left = "({0} & {1})".format(
+        state_heading_west_str(t),
         action_turn_left_str(t)
-    )
-    axiom = '{0} <=> ({1} | {2} | {3})'.format(state_heading_south_str(t+1), actions, left_turn, right_turn)
+        )
+    
+    # if agent currently heading towards the east, then the agent will turn right to face south
+    right = "({0} & {1})".format(
+        state_heading_east_str(t),
+        action_turn_right_str(t)
+        ) 
 
-    return axiom
+    return "{0} <=> ({1} | {2} | {3})".format(heading_south_ssa,action,left,right)
 
 
 """
@@ -658,31 +667,29 @@ def axiom_generator_heading_west_ssa(t):
 
     t := time
     """
-
-    actions = '({0} & ({1} | {2} | {3} | {4} | ~{5} | ~{6} | ~{7}))'.format(
-        state_heading_west_str(t),  # if the agent is already in the west direction at time t
-        action_shoot_str(t),    # action shoot will not change the direction of the agent if it was in the west direction 
-        action_forward_str(t),  # action forward will not change the direction of the agent if it was in the west direction
-        action_wait_str(t),  # action wait will not change the direction of the agent if it was in the west direction
-        action_grab_str(t),   # action grab will not change the direction of the agent if it was in the west direction
-        percept_bump_str(t+1),
-        action_turn_left_str(t),    # action turn left at time t will change the direction of the agent if the agent is already heading to the west
-        action_turn_right_str(t)    # action turn right at time t will change the direction of the agent if the agent is already heading to the west
-    )
-    # if the agernt is heading towards the north, then the agent will turn left 
-    left_turn = '({0} & {1})'.format(
+    heading_west_ssa = state_heading_west_str(t+1)
+    action = "({0} & ({1} | {2} | {3} | {4} | {5}))".format(
+        state_heading_west_str(t),      # the agent is already in the west direction at time t
+        action_wait_str(t),             # action wait will not change the direction of the agent if it was in the west direction
+        action_grab_str(t),             # action shoot will not change the direction of the agent if it was in the west direction
+        action_shoot_str(t),            # action grab will not change the direction of the agent if it was in the west direction
+        percept_bump_str(t+1),          
+        action_forward_str(t)           # action forward will not change the direction of the agent if it was in the west direction
+        )
+    
+    # if agent currently heading towards the north, then the agent will turn left to face west
+    left = "({0} & {1})".format(
         state_heading_north_str(t),
-        action_turn_left_str(t) 
-    )
-    # if the agernt is heading towards the south, then the agent will turn right 
-    righ_turn = '({0} & {1})'.format(
-        state_heading_south_str(t), 
+        action_turn_left_str(t)
+        )
+    
+    # if agent currently heading towards the south, then the agent will turn right to face west
+    right = "({0} & {1})".format(
+        state_heading_south_str(t),
         action_turn_right_str(t)
-    )
-    axiom = '{0} <=> ({1} | {2} | {3})'.format(state_heading_west_str(t+1), actions, left_turn, righ_turn)
-    return axiom
-
-
+        )
+    
+    return "{0} <=> ({1} | {2} | {3})".format(heading_west_ssa,action,left,right)
 
 def generate_heading_ssa(t):
     """
@@ -706,7 +713,8 @@ def generate_non_location_ssa(t):
     return filter(lambda s: s != '', axioms)
 
 
-# ----------------------------------
+
+#----------------------------------
 
 """
 Name: Priyank Patel
@@ -718,14 +726,14 @@ def axiom_generator_heading_only_north(t):
 
     t := time
     """
-    # if agent is going only in north then the agent is not allowed heading go in any other direction
+
+    # if agent is heading only in north then the agent is not allowed heading go in any other direction
     north = state_heading_north_str(t)
     south = state_heading_south_str(t)
     east = state_heading_east_str(t)
     west = state_heading_west_str(t)
     axiom = '{0} <=> ~({1} | {2} | {3})'.format(north,west,south,east)
     return axiom
-
 
 """
 Name: Priyank Patel
@@ -737,14 +745,13 @@ def axiom_generator_heading_only_east(t):
 
     t := time
     """
-    # if agent is going only in east then the agent is not allowed to heading in any other direction
+    # if agent is heading only in east then the agent is not allowed to heading in any other direction
     north = state_heading_north_str(t)
     south = state_heading_south_str(t)
     east = state_heading_east_str(t)
     west = state_heading_west_str(t)
     axiom = '{0} <=> ~({1} | {2} | {3})'.format(east,north,south,west)
     return axiom
-
 
 """
 Name: Priyank Patel
@@ -756,13 +763,14 @@ def axiom_generator_heading_only_south(t):
 
     t := time
     """
-    # if agent is going only in north then the agent is not allowed to heading in any other direction
+    # if agent is heading only in north then the agent is not allowed to heading in any other direction
     north = state_heading_north_str(t)
     south = state_heading_south_str(t)
     east = state_heading_east_str(t)
     west = state_heading_west_str(t)
     axiom = '{0} <=> ~({1} | {2} | {3})'.format(south,north,west,east)
     return axiom
+
 
 """
 Name: Priyank Patel
@@ -774,7 +782,8 @@ def axiom_generator_heading_only_west(t):
 
     t := time
     """
-    # if agent is going only in north then the agent is not allowed to heading in any other direction
+    
+    # if agent is heading only in north then the agent is not allowed to heading in any other direction
     north = state_heading_north_str(t)
     south = state_heading_south_str(t)
     east = state_heading_east_str(t)
@@ -805,13 +814,12 @@ def axiom_generator_only_one_action_axioms(t):
     """
     actions = ['Forward', 'Grab', 'Shoot', 'Climb', 'TurnLeft', 'TurnRight', 'Wait']
     axioms_list = []
-    for index, action in enumerate(actions):
-        other_actions = ['~' + x + str(t) for x in actions if x != action]
-        axioms_list.append('({0}{1} <=> ({2}))'.format(action, str(t), ' & '.join(other_actions)))
+    for action in actions:
+        other = ['~' + a + str(t) for a in actions if a != action]
+        axioms_list.append("(" + action + str(t) + " <=> (" + (" & ".join(other)) + "))")
 
-    axioms_string = ' & '.join(axioms_list)
 
-    return axioms_string
+    return ' & '.join(axioms_list)
 
 
 def generate_mutually_exclusive_axioms(t):
@@ -823,3 +831,5 @@ def generate_mutually_exclusive_axioms(t):
     axioms.append(axiom_generator_only_one_action_axioms(t))
     
     return filter(lambda s: s != '', axioms)
+
+#-------------------------------------------------------------------------------
