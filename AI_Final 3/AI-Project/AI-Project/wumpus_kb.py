@@ -137,10 +137,12 @@ def axiom_generator_percept_sentence(t, tvec):
         Output: '~Stench0 & Breeze0 & ~Glitter0 & ~Bump0 & Scream0'
     """
 
-    percept_seq = [f"{'~' if not tvec[i] else ''}{percept}{t}" for i, percept in enumerate(['Stench', 'Breeze', 'Glitter', 'Bump', 'Scream'])]
-    return " & ".join(percept_seq)
-
-
+    percept_seq = ['Stench', 'Breeze', 'Glitter', 'Bump', 'Scream']
+    for i in range(len(tvec)):
+        if not tvec[i]:
+            percept_seq[i] = "~" + percept_seq[i]
+        percept_seq[i]+=str(t)
+    return (" & ".join(percept_seq))
 """
 Name: Priyal Patel
 """
@@ -167,10 +169,14 @@ def axiom_generator_pits_and_breezes(x, y, xmin, xmax, ymin, ymax):
            of the environment (and therefore are walls, so can't have Pits).
     """
     axiom_str = ''
-    neighboring_pits = [pit_str(x_val, y_val) for x_val, y_val in [(x - 1, y), (x, y - 1), (x + 1, y), (x, y + 1)] if
-                        xmin <= x_val <= xmax and ymin <= y_val <= ymax]
-    neighboring_pits.append(pit_str(x, y))
-    axiom_str += '{0} <=> ({1})'.format(breeze_str(x, y), ' | '.join(neighboring_pits))
+
+    pits = []
+    for (xVal,yVal) in [((x-1),y),(x,(y-1)),((x+1),y),(x,(y+1))]:
+        if xVal >= xmin and xVal <= xmax and yVal >= ymin and yVal <= ymax:
+            pits.append(pit_str(xVal,yVal)) 
+    pits.append('P'+str(x)+'_'+str(y))
+    axiom_str += '{0} <=> ({1})'.format(breeze_str(x,y),(' | ').join(pits))
+
     return axiom_str
 
     
@@ -202,13 +208,13 @@ def axiom_generator_wumpus_and_stench(x, y, xmin, xmax, ymin, ymax):
            variables to 'prune' any neighboring locations that are outside
            of the environment (and therefore are walls, so can't have Wumpi).
     """
-    wumpus_neighbors = [wumpus_str(i, j) for i, j in [(x-1, y), (x, y-1), (x+1, y), (x, y+1)]
-                        if xmin <= i <= xmax and ymin <= j <= ymax]
-    wumpus_neighbors.append(wumpus_str(x, y))
-    wumpus_or = ' | '.join(wumpus_neighbors)
-    axiom_str = f'{stench_str(x, y)} <=> ({wumpus_or})'
-    return axiom_str
+    wumpus = []
+    for i, j in [(x-1,y),(x,y-1),(x+1,y),(x,y+1)]:
+        if xmin <= i <= xmax and ymin <= j <= ymax:
+            wumpus.append(wumpus_str(i, j))
+    wumpus.append(wumpus_str(x, y))
 
+    return (stench_str(x,y) + " <=> (" + (" | ").join(wumpus) + ")")
 
 
 def generate_wumpus_and_stench_axioms(xmin, xmax, ymin, ymax):
@@ -480,7 +486,7 @@ def axiom_generator_at_location_ssa(t, x, y, xmin, xmax, ymin, ymax):
             if temp == "S":
                 curr.append(f"({state_loc_str(x, y + 1, t)} & ({state_heading_south_str(t)} & {action_forward_str(t)}))")
 
-    return f"{state_loc_str(x, y, t + 1)} <=> ({" | ".join(curr)})"
+    return "{0} <=> ({1})".format(state_loc_str(x,y,t+1)," | ".join(curr))
 
 def generate_at_location_ssa(t, x, y, xmin, xmax, ymin, ymax, heading):
     """
@@ -806,10 +812,10 @@ def axiom_generator_only_one_action_axioms(t):
     """
     actions = ['Forward', 'Grab', 'Shoot', 'Climb', 'TurnLeft', 'TurnRight', 'Wait']
     axioms_list = []
+    for action in actions:
+        other = ['~' + a + str(t) for a in actions if a != action]
+        axioms_list.append("(" + action + str(t) + " <=> (" + (" & ".join(other)) + "))")
 
-    for i, action in enumerate(actions):
-        axiom = f'({action}{t} <=> ~{" & ".join(a + str(t) for a in actions[:i] + actions[i+1:])})'
-        axioms_list.append(axiom)
 
     return ' & '.join(axioms_list)
 
